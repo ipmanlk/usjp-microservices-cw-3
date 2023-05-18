@@ -2,6 +2,7 @@ package xyz.navinda.admin.controller;
 
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.EurekaClient;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -9,6 +10,7 @@ import xyz.navinda.admin.entity.Department;
 import xyz.navinda.admin.entity.Employee;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -35,12 +37,17 @@ public class AdminController {
 
     // Retrieve all Employees
     @GetMapping("/employees")
+    @CircuitBreaker(name = "employeeService", fallbackMethod = "findAllEmployeesFallback")
     public List<Employee> findAllEmployees() {
-        InstanceInfo instanceInfo = discoveryClient.getNextServerFromEureka("EMPLOYEE-SERVICE",false);
+        InstanceInfo instanceInfo = discoveryClient.getNextServerFromEureka("EMPLOYEE-SERVICE", false);
         String empUrl = instanceInfo.getHomePageUrl() + "/employees";
-        // Send a GET request to the Employee service to retrieve all employees
         Employee[] employees = restTemplate.getForObject(empUrl, Employee[].class);
         return Arrays.asList(employees);
+    }
+
+    // Fallback method
+    public List<Employee> findAllEmployeesFallback(Throwable t) {
+        return Collections.emptyList();
     }
 
     // Retrieve an Employee by ID
